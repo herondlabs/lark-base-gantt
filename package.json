@@ -1,0 +1,16 @@
+{
+  "name": "lark-base-gantt",
+  "version": "1.0.0",
+  "description": "Custom Gantt chart extension for Lark Base",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "node build.js",
+    "deploy": "node build.js && git add index.html && git commit -m 'build' && git push"
+  },
+  "dependencies": {
+    "@lark-base-open/js-sdk": "1.0.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.0"
+  }
+}
