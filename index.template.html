@@ -49,6 +49,12 @@ body{
   color:var(--text);
   min-height:100vh;
   font-size:14px;
+  overflow:hidden;
+}
+
+body.fullscreen-fallback,
+:fullscreen body{
+  overflow:auto;
 }
 
 /* ── Header ── */
@@ -98,9 +104,59 @@ body{
 .filter-select:focus{border-color:#3B82F6}
 .header-actions{display:flex;gap:8px;flex-wrap:wrap}
 
+/* ── Landing Page ── */
+#landing{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  height:100vh;gap:24px;
+}
+#landing h1{
+  font-size:32px;font-weight:800;
+  letter-spacing:.03em;
+  color:var(--text);
+  text-align:center;
+  margin:0;
+}
+#landing h1 span{color:#3B82F6}
+#landing .landing-btn{
+  background:#3B82F6;
+  border:none;
+  color:#fff;
+  padding:16px 32px;
+  border-radius:8px;
+  cursor:pointer;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;font-weight:600;
+  letter-spacing:.05em;
+  transition:background .2s;
+}
+#landing .landing-btn:hover{
+  background:#2563EB;
+}
+body.fullscreen-fallback #landing,
+:fullscreen #landing{
+  display:none;
+}
+
+/* ── Main Content ── */
+.header,#gantt,.state{display:none}
+body.fullscreen-fallback .header,
+body.fullscreen-fallback .state,
+:fullscreen .header,
+:fullscreen .state{
+  display:flex;
+}
+.header{
+  flex-direction:row;
+}
+body.fullscreen-fallback #gantt,
+:fullscreen #gantt{
+  display:block;
+}
+
 /* ── States ── */
 .state{
-  display:flex;flex-direction:column;
+  flex-direction:column;
   align-items:center;justify-content:center;
   height:calc(100vh - 53px);gap:16px;
   color:var(--dim);font-size:14px;text-align:center;padding:20px;
@@ -118,7 +174,7 @@ body{
 .empty b{color:var(--text)}
 
 /* ── Gantt wrapper ── */
-#gantt{display:none;overflow:auto;height:calc(100vh - 53px)}
+#gantt{overflow:auto;height:calc(100vh - 53px)}
 .gantt-wrap{min-width:900px}
 
 /* ── Timeline header ── */
@@ -131,10 +187,10 @@ body{
 .row-lbl-hd{
   width:300px;min-width:300px;
   padding:8px 16px;
-  font-size:11px;color:var(--faint);
+  font-size:11px;color:var(--dim);font-weight:700;
   text-transform:uppercase;letter-spacing:.1em;
   border-right:1px solid var(--border2);
-  display:flex;align-items:flex-end;
+  display:flex;align-items:center;justify-content:center;
 }
 .tl-cols{flex:1;overflow:hidden}
 .tl-quarters,.tl-months{display:flex}
@@ -279,6 +335,11 @@ body.fullscreen-fallback{
 </style>
 </head>
 <body>
+
+<div id="landing">
+  <h1><span>TECHNOLOGY ROADMAP</span></h1>
+  <button class="landing-btn" onclick="toggleFullscreen()">⛶ VIEW FULLSCREEN</button>
+</div>
 
 <div class="header">
   <div class="header-title"><span>TECHNOLOGY ROADMAP</span></div>
