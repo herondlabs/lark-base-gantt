@@ -121,13 +121,69 @@ async function loadItems() {
   return items;
 }
 
+// ─── Filters ──────────────────────────────────────────────────────────────────
+
+let _allItems = [];
+let _selectedYear = String(new Date().getFullYear());
+let _selectedStatus = 'all';
+
+function getYears(items) {
+  const years = new Set();
+  items.forEach(item => {
+    years.add(item.startDate.getFullYear());
+    years.add(item.endDate.getFullYear());
+  });
+  return Array.from(years).sort((a, b) => a - b);
+}
+
+function getStatuses(items) {
+  const statuses = new Set();
+  items.forEach(item => {
+    if (item.status) statuses.add(item.status);
+  });
+  return Array.from(statuses).sort();
+}
+
+function applyFilters(items) {
+  let filtered = items;
+
+  // Year filter
+  if (_selectedYear !== 'all') {
+    const y = parseInt(_selectedYear);
+    filtered = filtered.filter(item => {
+      const startYear = item.startDate.getFullYear();
+      const endYear = item.endDate.getFullYear();
+      return startYear === y || endYear === y;
+    });
+  }
+
+  // Status filter
+  if (_selectedStatus !== 'all') {
+    filtered = filtered.filter(item => item.status === _selectedStatus);
+  }
+
+  return filtered;
+}
+
+function setYear(year) {
+  _selectedYear = year;
+  renderGantt(applyFilters(_allItems));
+}
+
+function setStatus(status) {
+  _selectedStatus = status;
+  renderGantt(applyFilters(_allItems));
+}
+
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
 function getMonths(minDate, maxDate) {
   const months = [];
   const d = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-  const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-  while (d <= end) {
+  const endMonth = maxDate.getMonth();
+  const endYear = maxDate.getFullYear();
+
+  while (d.getFullYear() < endYear || (d.getFullYear() === endYear && d.getMonth() <= endMonth)) {
     months.push(new Date(d));
     d.setMonth(d.getMonth() + 1);
   }
@@ -138,7 +194,7 @@ function getQuarterLabel(d) {
   return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
 }
 
-function renderGantt(items) {
+function renderGantt(items, updateYearFilter = false) {
   const container = document.getElementById('gantt');
   container.innerHTML = '';
 
@@ -151,9 +207,14 @@ function renderGantt(items) {
   const allDates = items.flatMap(i => [i.startDate, i.endDate]);
   const minDate = new Date(Math.min(...allDates));
   const maxDate = new Date(Math.max(...allDates));
+
+  // Set minDate to start of its month
   minDate.setDate(1);
-  maxDate.setDate(1);
-  maxDate.setMonth(maxDate.getMonth() + 1);
+  minDate.setHours(0, 0, 0, 0);
+
+  // Set maxDate to end of its month
+  const endOfMonth = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0, 23, 59, 59, 999);
+  maxDate.setTime(endOfMonth.getTime());
 
   const totalMs = maxDate - minDate;
   const months = getMonths(minDate, maxDate);
@@ -166,9 +227,10 @@ function renderGantt(items) {
   const quarters = [];
   months.forEach(m => {
     const ql = getQuarterLabel(m);
+    const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
     const last = quarters[quarters.length - 1];
-    if (last && last.label === ql) last.count++;
-    else quarters.push({ label: ql, count: 1 });
+    if (last && last.label === ql) last.days += daysInMonth;
+    else quarters.push({ label: ql, days: daysInMonth });
   });
 
   // Group items by component
@@ -186,13 +248,28 @@ function renderGantt(items) {
     return ai - bi;
   });
 
-  // Update legend
-  const legend = document.getElementById('legend');
-  legend.innerHTML = sortedGroups.map(([c]) =>
-    `<span class="leg"><span class="leg-dot" style="background:${getColor(c)}"></span>${escHtml(c)}</span>`
-  ).join('');
-
-  document.getElementById('count').textContent = `${items.length} items`;
+  // Update filters
+  if (updateYearFilter && _allItems.length > 0) {
+    const years = getYears(_allItems);
+    const statuses = getStatuses(_allItems);
+    const filtersContainer = document.getElementById('filters');
+    if (filtersContainer) {
+      filtersContainer.innerHTML = `
+        <select class="filter-select" onchange="setYear(this.value)">
+          <option value="all" ${_selectedYear === 'all' ? 'selected' : ''}>All Years</option>
+          ${years.map(y =>
+            `<option value="${y}" ${_selectedYear === String(y) ? 'selected' : ''}>${y}</option>`
+          ).join('')}
+        </select>
+        <select class="filter-select" onchange="setStatus(this.value)">
+          <option value="all" ${_selectedStatus === 'all' ? 'selected' : ''}>All Statuses</option>
+          ${statuses.map(s =>
+            `<option value="${s}" ${_selectedStatus === s ? 'selected' : ''}>${escHtml(s)}</option>`
+          ).join('')}
+        </select>
+      `;
+    }
+  }
 
   // Today position
   const todayPct = pct(new Date());
@@ -205,12 +282,13 @@ function renderGantt(items) {
     <div class="row-lbl-hd">ITEM</div>
     <div class="tl-cols">
       <div class="tl-quarters">
-        ${quarters.map(q => `<div class="tl-q" style="flex:${q.count}">${escHtml(q.label)}</div>`).join('')}
+        ${quarters.map(q => `<div class="tl-q" style="flex:${q.days}">${escHtml(q.label)}</div>`).join('')}
       </div>
       <div class="tl-months">
         ${months.map(m => {
           const isNow = m.getMonth() === new Date().getMonth() && m.getFullYear() === new Date().getFullYear();
-          return `<div class="tl-m ${isNow ? 'tl-m-now' : ''}">${m.toLocaleString('en-US', { month: 'short' })}</div>`;
+          const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+          return `<div class="tl-m ${isNow ? 'tl-m-now' : ''}" style="flex:${daysInMonth}">${m.toLocaleString('en-US', { month: 'short' })}</div>`;
         }).join('')}
       </div>
     </div>
@@ -256,7 +334,8 @@ function renderGantt(items) {
         <div class="bar-area">
           ${months.map(m => {
             const isQstart = m.getMonth() % 3 === 0;
-            return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}"></div>`;
+            const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+            return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
           }).join('')}
           <div class="today-line" style="left:${todayPct}%"></div>
           <div class="bar" style="${barStyle}">
@@ -325,8 +404,9 @@ async function refresh() {
   _refreshing = true;
   try {
     showState('loading');
-    const items = await loadItems();
-    renderGantt(items);
+    _allItems = await loadItems();
+    const filtered = applyFilters(_allItems);
+    renderGantt(filtered, true);
     showState('gantt');
   } catch (err) {
     console.error(err);
@@ -390,6 +470,8 @@ function toggleFullscreen() {
 }
 
 window.refresh = refresh;
+window.setYear = setYear;
+window.setStatus = setStatus;
 window.toggleTheme = toggleTheme;
 window.toggleFullscreen = toggleFullscreen;
 initTheme();
