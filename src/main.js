@@ -164,6 +164,7 @@ async function loadItems() {
 let _allItems = [];
 let _selectedYear = String(new Date().getFullYear());
 let _selectedStatuses = []; // Empty array means "all statuses"
+let _collapsedComponents = new Set(); // Set of component names that are collapsed
 
 function getYears(items) {
   const years = new Set();
@@ -258,6 +259,15 @@ function toggleAllStatuses(event) {
     }
   }
 
+  renderGantt(applyFilters(_allItems), false);
+}
+
+function toggleComponentCollapse(component) {
+  if (_collapsedComponents.has(component)) {
+    _collapsedComponents.delete(component);
+  } else {
+    _collapsedComponents.add(component);
+  }
   renderGantt(applyFilters(_allItems), false);
 }
 
@@ -447,8 +457,10 @@ function renderGantt(items, updateYearFilter = false) {
     const rgb = hexToRgb(color);
 
     html += `<div class="group-hd">
-      <div class="group-lbl">
-        <span class="group-dot" style="background:${color}"></span>
+      <div class="group-lbl" style="cursor:pointer" onclick="toggleComponentCollapse('${escHtml(comp).replace(/'/g, "\\'")}')">
+        ${_collapsedComponents.has(comp)
+          ? `<span class="group-arrow" style="background:${color}"></span>`
+          : `<span class="group-dot" style="background:${color}"></span>`}
         <span class="group-name" style="color:${color}">${escHtml(comp)}</span>
         <span class="group-ct">${compItems.length}</span>
       </div>
@@ -461,58 +473,61 @@ function renderGantt(items, updateYearFilter = false) {
       </div>
     </div>`;
 
-    compItems.forEach(item => {
-      const sp = pct(item.startDate);
-      // End date: extend to end of day (next day at 00:00)
-      const endPlusOneDay = new Date(item.endDate);
-      endPlusOneDay.setDate(endPlusOneDay.getDate() + 1);
-      const ep = pct(endPlusOneDay);
-      const w = Math.max(ep - sp, 0.5);
-      const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG['Not Started'];
-      const badge = STATUS_BADGE[item.status] || STATUS_BADGE['Not Started'];
-      const ownerFirst = (item.owner || '').split(' ')[0];
+    // Only render rows if component is not collapsed
+    if (!_collapsedComponents.has(comp)) {
+      compItems.forEach(item => {
+        const sp = pct(item.startDate);
+        // End date: extend to end of day (next day at 00:00)
+        const endPlusOneDay = new Date(item.endDate);
+        endPlusOneDay.setDate(endPlusOneDay.getDate() + 1);
+        const ep = pct(endPlusOneDay);
+        const w = Math.max(ep - sp, 0.5);
+        const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG['Not Started'];
+        const badge = STATUS_BADGE[item.status] || STATUS_BADGE['Not Started'];
+        const ownerFirst = (item.owner || '').split(' ')[0];
 
-      let barStyle;
-      if (sc.dashed && sc.stripe) {
-        // Archived: dashed border + diagonal stripes
-        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:repeating-linear-gradient(45deg,rgba(${rgb},0.15),rgba(${rgb},0.15) 4px,transparent 4px,transparent 8px);opacity:${sc.opacity}`;
-      } else if (sc.dashed) {
-        // Not Started: dashed border + solid light fill
-        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
-      } else if (sc.bordered) {
-        // Pending: solid border + opaque fill
-        barStyle = `left:${sp}%;width:${w}%;border:1.5px solid ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
-      } else {
-        // Done, In Progress: solid bar
-        barStyle = `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
-      }
+        let barStyle;
+        if (sc.dashed && sc.stripe) {
+          // Archived: dashed border + diagonal stripes
+          barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:repeating-linear-gradient(45deg,rgba(${rgb},0.15),rgba(${rgb},0.15) 4px,transparent 4px,transparent 8px);opacity:${sc.opacity}`;
+        } else if (sc.dashed) {
+          // Not Started: dashed border + solid light fill
+          barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
+        } else if (sc.bordered) {
+          // Pending: solid border + opaque fill
+          barStyle = `left:${sp}%;width:${w}%;border:1.5px solid ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
+        } else {
+          // Done, In Progress: solid bar
+          barStyle = `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
+        }
 
-      html += `<div class="g-row"
-        data-name="${escHtml(item.name)}"
-        data-comp="${escHtml(comp)}"
-        data-status="${escHtml(item.status)}"
-        data-owner="${escHtml(item.owner)}"
-        data-start="${item.startDate.toISOString()}"
-        data-end="${item.endDate.toISOString()}"
-        data-color="${color}"
-        data-badge-bg="${badge.bg}"
-        data-badge-color="${badge.color}">
-        <div class="row-lbl">
-          <span class="row-name" title="${escHtml(item.name)}">${escHtml(item.name)}</span>
-          <span class="row-owner">${escHtml(ownerFirst)}</span>
-        </div>
-        <div class="bar-area">
-          ${months.map(m => {
-            const isQstart = m.getMonth() % 3 === 0;
-            const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
-            return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
-          }).join('')}
-          <div class="bar" style="${barStyle}">
-            ${w > 8 ? `<span class="bar-label">${escHtml(item.name)}</span>` : ''}
+        html += `<div class="g-row"
+          data-name="${escHtml(item.name)}"
+          data-comp="${escHtml(comp)}"
+          data-status="${escHtml(item.status)}"
+          data-owner="${escHtml(item.owner)}"
+          data-start="${item.startDate.toISOString()}"
+          data-end="${item.endDate.toISOString()}"
+          data-color="${color}"
+          data-badge-bg="${badge.bg}"
+          data-badge-color="${badge.color}">
+          <div class="row-lbl">
+            <span class="row-name" title="${escHtml(item.name)}">${escHtml(item.name)}</span>
+            <span class="row-owner">${escHtml(ownerFirst)}</span>
           </div>
-        </div>
-      </div>`;
-    });
+          <div class="bar-area">
+            ${months.map(m => {
+              const isQstart = m.getMonth() % 3 === 0;
+              const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+              return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
+            }).join('')}
+            <div class="bar" style="${barStyle}">
+              ${w > 8 ? `<span class="bar-label">${escHtml(item.name)}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+      });
+    }
   });
 
   html += `</div>`;
@@ -651,6 +666,7 @@ window.setYear = setYear;
 window.toggleStatus = toggleStatus;
 window.toggleAllStatuses = toggleAllStatuses;
 window.toggleStatusDropdown = toggleStatusDropdown;
+window.toggleComponentCollapse = toggleComponentCollapse;
 window.toggleTheme = toggleTheme;
 window.toggleFullscreen = toggleFullscreen;
 initTheme();

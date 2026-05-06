@@ -282,8 +282,13 @@ body.fullscreen-fallback #gantt,
   padding:0 16px;
   border-right:1px solid var(--border);
   display:flex;align-items:center;gap:10px;
+  transition:background .15s;
+}
+.group-lbl:hover{
+  background:rgba(255,255,255,0.05);
 }
 .group-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.group-arrow{width:10px;height:5px;border-radius:1px;flex-shrink:0}
 .group-name{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
 .group-ct{font-size:11px;color:var(--faint)}
 .group-bar-area{
@@ -332,7 +337,7 @@ body.fullscreen-fallback #gantt,
 .bar{
   position:absolute;top:50%;
   transform:translateY(-50%);
-  height:26px;border-radius:4px;
+  height:28px;border-radius:4px;
   display:flex;align-items:center;
   padding:0 9px;
   cursor:pointer;
@@ -344,7 +349,7 @@ body.fullscreen-fallback #gantt,
 .bar:hover{filter:brightness(1.25);z-index:60}
 body.light-mode .bar:hover{filter:brightness(0.85)}
 .bar-label{
-  font-size:11px;
+  font-size:12px;
   color:rgba(255,255,255,.9);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   pointer-events:none;
