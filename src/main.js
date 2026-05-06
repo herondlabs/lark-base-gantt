@@ -163,7 +163,7 @@ async function loadItems() {
 
 let _allItems = [];
 let _selectedYear = String(new Date().getFullYear());
-let _selectedStatus = 'all';
+let _selectedStatuses = []; // Empty array means "all statuses"
 
 function getYears(items) {
   const years = new Set();
@@ -196,8 +196,11 @@ function applyFilters(items) {
   }
 
   // Status filter
-  if (_selectedStatus !== 'all') {
-    filtered = filtered.filter(item => item.status === _selectedStatus);
+  if (_selectedStatuses.length > 0) {
+    filtered = filtered.filter(item => _selectedStatuses.includes(item.status));
+  } else {
+    // No statuses selected = show nothing
+    filtered = [];
   }
 
   return filtered;
@@ -208,10 +211,71 @@ function setYear(year) {
   renderGantt(applyFilters(_allItems));
 }
 
-function setStatus(status) {
-  _selectedStatus = status;
-  renderGantt(applyFilters(_allItems));
+function toggleStatus(status) {
+  const idx = _selectedStatuses.indexOf(status);
+  if (idx >= 0) {
+    _selectedStatuses.splice(idx, 1);
+  } else {
+    _selectedStatuses.push(status);
+  }
+
+  // Update "All" checkbox based on whether all are selected
+  const dropdown = document.getElementById('statusDropdown');
+  if (dropdown) {
+    const allStatuses = getStatuses(_allItems);
+    const allCheckbox = dropdown.querySelector('input[type="checkbox"]');
+    if (allCheckbox) {
+      allCheckbox.checked = _selectedStatuses.length === allStatuses.length;
+    }
+  }
+
+  renderGantt(applyFilters(_allItems), false);
 }
+
+function toggleAllStatuses(event) {
+  const allStatuses = getStatuses(_allItems);
+  const dropdown = document.getElementById('statusDropdown');
+
+  if (event.target.checked) {
+    // "All" checked => select all
+    _selectedStatuses = [...allStatuses];
+
+    // Check all individual checkboxes
+    if (dropdown) {
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach((cb, i) => {
+        if (i > 0) cb.checked = true;
+      });
+    }
+  } else {
+    // "All" unchecked => deselect all
+    _selectedStatuses = [];
+
+    // Uncheck all individual checkboxes
+    if (dropdown) {
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach((cb, i) => {
+        if (i > 0) cb.checked = false;
+      });
+    }
+  }
+
+  renderGantt(applyFilters(_allItems), false);
+}
+
+function toggleStatusDropdown() {
+  const dropdown = document.getElementById('statusDropdown');
+  if (dropdown) {
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('statusDropdown');
+  const filterBtn = e.target.closest('.filter-btn');
+  if (dropdown && !e.target.closest('.status-filter') && !filterBtn) {
+    dropdown.style.display = 'none';
+  }
+});
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
@@ -290,8 +354,13 @@ function renderGantt(items, updateYearFilter = false) {
   if (updateYearFilter && _allItems.length > 0) {
     const years = getYears(_allItems);
     const statuses = getStatuses(_allItems);
+    const allSelected = _selectedStatuses.length === statuses.length;
     const filtersContainer = document.getElementById('filters');
     if (filtersContainer) {
+      // Check if dropdown was open before re-render
+      const oldDropdown = document.getElementById('statusDropdown');
+      const wasOpen = oldDropdown && oldDropdown.style.display !== 'none';
+
       filtersContainer.innerHTML = `
         <select class="filter-select" onchange="setYear(this.value)">
           <option value="all" ${_selectedYear === 'all' ? 'selected' : ''}>All Years</option>
@@ -299,12 +368,27 @@ function renderGantt(items, updateYearFilter = false) {
             `<option value="${y}" ${_selectedYear === String(y) ? 'selected' : ''}>${y}</option>`
           ).join('')}
         </select>
-        <select class="filter-select" onchange="setStatus(this.value)">
-          <option value="all" ${_selectedStatus === 'all' ? 'selected' : ''}>All Statuses</option>
-          ${statuses.map(s =>
-            `<option value="${s}" ${_selectedStatus === s ? 'selected' : ''}>${escHtml(s)}</option>`
-          ).join('')}
-        </select>
+        <div class="status-filter">
+          <button class="filter-btn" onclick="toggleStatusDropdown()">
+            Status
+          </button>
+          <div class="status-dropdown" id="statusDropdown" style="display:${wasOpen ? 'block' : 'none'}">
+            <label class="status-option">
+              <input type="checkbox"
+                ${allSelected ? 'checked' : ''}
+                onchange="toggleAllStatuses(event)">
+              <span><b>All</b></span>
+            </label>
+            ${statuses.map(s => `
+              <label class="status-option">
+                <input type="checkbox" value="${escHtml(s)}"
+                  ${_selectedStatuses.includes(s) ? 'checked' : ''}
+                  onchange="toggleStatus('${escHtml(s).replace(/'/g, "\\'")}')">
+                <span>${escHtml(s)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
       `;
     }
   }
@@ -484,12 +568,20 @@ function showState(state, msg = '') {
 }
 
 let _refreshing = false;
+let _firstLoad = true;
 async function refresh() {
   if (_refreshing) return;
   _refreshing = true;
   try {
     showState('loading');
     _allItems = await loadItems();
+
+    // Initialize status filter with all statuses except Archived on first load
+    if (_firstLoad && _allItems.length > 0) {
+      _selectedStatuses = getStatuses(_allItems).filter(s => s !== 'Archived');
+      _firstLoad = false;
+    }
+
     const filtered = applyFilters(_allItems);
     renderGantt(filtered, true);
     showState('gantt');
@@ -556,7 +648,9 @@ function toggleFullscreen() {
 
 window.refresh = refresh;
 window.setYear = setYear;
-window.setStatus = setStatus;
+window.toggleStatus = toggleStatus;
+window.toggleAllStatuses = toggleAllStatuses;
+window.toggleStatusDropdown = toggleStatusDropdown;
 window.toggleTheme = toggleTheme;
 window.toggleFullscreen = toggleFullscreen;
 initTheme();
