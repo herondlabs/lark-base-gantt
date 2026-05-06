@@ -19,10 +19,10 @@ const COMPONENT_COLORS = {
 };
 
 const STATUS_CONFIG = {
-  'Done':        { opacity: 0.4,  glow: false, dashed: false },
-  'In Progress': { opacity: 1.0,  glow: true,  dashed: false },
-  'Pending':     { opacity: 0.7,  glow: false, dashed: true  },
-  'Not Started': { opacity: 0.25, glow: false, dashed: true  },
+  'Done':        { opacity: 0.4,  glow: false, dashed: false, stripe: false },
+  'In Progress': { opacity: 1.0,  glow: true,  dashed: false, stripe: false },
+  'Pending':     { opacity: 0.7,  glow: false, dashed: true,  stripe: true  },
+  'Not Started': { opacity: 0.25, glow: false, dashed: true,  stripe: false },
 };
 
 const STATUS_BADGE = {
@@ -121,13 +121,69 @@ async function loadItems() {
   return items;
 }
 
+// ─── Filters ──────────────────────────────────────────────────────────────────
+
+let _allItems = [];
+let _selectedYear = String(new Date().getFullYear());
+let _selectedStatus = 'all';
+
+function getYears(items) {
+  const years = new Set();
+  items.forEach(item => {
+    years.add(item.startDate.getFullYear());
+    years.add(item.endDate.getFullYear());
+  });
+  return Array.from(years).sort((a, b) => a - b);
+}
+
+function getStatuses(items) {
+  const statuses = new Set();
+  items.forEach(item => {
+    if (item.status) statuses.add(item.status);
+  });
+  return Array.from(statuses).sort();
+}
+
+function applyFilters(items) {
+  let filtered = items;
+
+  // Year filter
+  if (_selectedYear !== 'all') {
+    const y = parseInt(_selectedYear);
+    filtered = filtered.filter(item => {
+      const startYear = item.startDate.getFullYear();
+      const endYear = item.endDate.getFullYear();
+      return startYear === y || endYear === y;
+    });
+  }
+
+  // Status filter
+  if (_selectedStatus !== 'all') {
+    filtered = filtered.filter(item => item.status === _selectedStatus);
+  }
+
+  return filtered;
+}
+
+function setYear(year) {
+  _selectedYear = year;
+  renderGantt(applyFilters(_allItems));
+}
+
+function setStatus(status) {
+  _selectedStatus = status;
+  renderGantt(applyFilters(_allItems));
+}
+
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
 function getMonths(minDate, maxDate) {
   const months = [];
   const d = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-  const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
-  while (d <= end) {
+  const endMonth = maxDate.getMonth();
+  const endYear = maxDate.getFullYear();
+
+  while (d.getFullYear() < endYear || (d.getFullYear() === endYear && d.getMonth() <= endMonth)) {
     months.push(new Date(d));
     d.setMonth(d.getMonth() + 1);
   }
@@ -138,7 +194,7 @@ function getQuarterLabel(d) {
   return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
 }
 
-function renderGantt(items) {
+function renderGantt(items, updateYearFilter = false) {
   const container = document.getElementById('gantt');
   container.innerHTML = '';
 
@@ -151,9 +207,14 @@ function renderGantt(items) {
   const allDates = items.flatMap(i => [i.startDate, i.endDate]);
   const minDate = new Date(Math.min(...allDates));
   const maxDate = new Date(Math.max(...allDates));
+
+  // Set minDate to start of its month
   minDate.setDate(1);
-  maxDate.setDate(1);
-  maxDate.setMonth(maxDate.getMonth() + 1);
+  minDate.setHours(0, 0, 0, 0);
+
+  // Set maxDate to end of its month
+  const endOfMonth = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0, 23, 59, 59, 999);
+  maxDate.setTime(endOfMonth.getTime());
 
   const totalMs = maxDate - minDate;
   const months = getMonths(minDate, maxDate);
@@ -166,9 +227,10 @@ function renderGantt(items) {
   const quarters = [];
   months.forEach(m => {
     const ql = getQuarterLabel(m);
+    const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
     const last = quarters[quarters.length - 1];
-    if (last && last.label === ql) last.count++;
-    else quarters.push({ label: ql, count: 1 });
+    if (last && last.label === ql) last.days += daysInMonth;
+    else quarters.push({ label: ql, days: daysInMonth });
   });
 
   // Group items by component
@@ -186,31 +248,52 @@ function renderGantt(items) {
     return ai - bi;
   });
 
-  // Update legend
-  const legend = document.getElementById('legend');
-  legend.innerHTML = sortedGroups.map(([c]) =>
-    `<span class="leg"><span class="leg-dot" style="background:${getColor(c)}"></span>${escHtml(c)}</span>`
-  ).join('');
+  // Update filters
+  if (updateYearFilter && _allItems.length > 0) {
+    const years = getYears(_allItems);
+    const statuses = getStatuses(_allItems);
+    const filtersContainer = document.getElementById('filters');
+    if (filtersContainer) {
+      filtersContainer.innerHTML = `
+        <select class="filter-select" onchange="setYear(this.value)">
+          <option value="all" ${_selectedYear === 'all' ? 'selected' : ''}>All Years</option>
+          ${years.map(y =>
+            `<option value="${y}" ${_selectedYear === String(y) ? 'selected' : ''}>${y}</option>`
+          ).join('')}
+        </select>
+        <select class="filter-select" onchange="setStatus(this.value)">
+          <option value="all" ${_selectedStatus === 'all' ? 'selected' : ''}>All Statuses</option>
+          ${statuses.map(s =>
+            `<option value="${s}" ${_selectedStatus === s ? 'selected' : ''}>${escHtml(s)}</option>`
+          ).join('')}
+        </select>
+      `;
+    }
+  }
 
-  document.getElementById('count').textContent = `${items.length} items`;
-
-  // Today position
-  const todayPct = pct(new Date());
+  // Today position (normalized to start of day)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayPct = pct(today);
 
   // Build HTML
-  let html = `<div class="gantt-wrap">`;
+  // Today line offset: label column + percentage of timeline area
+  // Formula: labelWidth + (todayPct% - labelWidth * todayPct/100)
+  let html = `<div class="gantt-wrap" style="--today-pct:${todayPct}">
+    <div class="today-line" style="left:calc(var(--label-width) + var(--today-pct) * 1% - var(--label-width) * var(--today-pct) / 100)"></div>`;
 
   // ── Timeline Header ──
   html += `<div class="tl-header">
     <div class="row-lbl-hd">ITEM</div>
     <div class="tl-cols">
       <div class="tl-quarters">
-        ${quarters.map(q => `<div class="tl-q" style="flex:${q.count}">${escHtml(q.label)}</div>`).join('')}
+        ${quarters.map(q => `<div class="tl-q" style="flex:${q.days}">${escHtml(q.label)}</div>`).join('')}
       </div>
       <div class="tl-months">
         ${months.map(m => {
           const isNow = m.getMonth() === new Date().getMonth() && m.getFullYear() === new Date().getFullYear();
-          return `<div class="tl-m ${isNow ? 'tl-m-now' : ''}">${m.toLocaleString('en-US', { month: 'short' })}</div>`;
+          const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+          return `<div class="tl-m ${isNow ? 'tl-m-now' : ''}" style="flex:${daysInMonth}">${m.toLocaleString('en-US', { month: 'short' })}</div>`;
         }).join('')}
       </div>
     </div>
@@ -222,22 +305,42 @@ function renderGantt(items) {
     const rgb = hexToRgb(color);
 
     html += `<div class="group-hd">
-      <span class="group-dot" style="background:${color}"></span>
-      <span class="group-name" style="color:${color}">${escHtml(comp)}</span>
-      <span class="group-ct">${compItems.length}</span>
+      <div class="group-lbl">
+        <span class="group-dot" style="background:${color}"></span>
+        <span class="group-name" style="color:${color}">${escHtml(comp)}</span>
+        <span class="group-ct">${compItems.length}</span>
+      </div>
+      <div class="group-bar-area">
+        ${months.map(m => {
+          const isQstart = m.getMonth() % 3 === 0;
+          const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+          return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
+        }).join('')}
+      </div>
     </div>`;
 
     compItems.forEach(item => {
       const sp = pct(item.startDate);
-      const ep = pct(item.endDate);
+      // End date: extend to end of day (next day at 00:00)
+      const endPlusOneDay = new Date(item.endDate);
+      endPlusOneDay.setDate(endPlusOneDay.getDate() + 1);
+      const ep = pct(endPlusOneDay);
       const w = Math.max(ep - sp, 0.5);
       const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG['Not Started'];
       const badge = STATUS_BADGE[item.status] || STATUS_BADGE['Not Started'];
       const ownerFirst = (item.owner || '').split(' ')[0];
 
-      const barStyle = sc.dashed
-        ? `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`
-        : `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
+      let barStyle;
+      if (sc.dashed && sc.stripe) {
+        // Pending: diagonal stripes
+        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:repeating-linear-gradient(45deg,rgba(${rgb},0.15),rgba(${rgb},0.15) 4px,transparent 4px,transparent 8px);opacity:${sc.opacity}`;
+      } else if (sc.dashed) {
+        // Not Started: solid light fill
+        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
+      } else {
+        // Done, In Progress: solid bar
+        barStyle = `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
+      }
 
       html += `<div class="g-row"
         data-name="${escHtml(item.name)}"
@@ -256,9 +359,9 @@ function renderGantt(items) {
         <div class="bar-area">
           ${months.map(m => {
             const isQstart = m.getMonth() % 3 === 0;
-            return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}"></div>`;
+            const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+            return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
           }).join('')}
-          <div class="today-line" style="left:${todayPct}%"></div>
           <div class="bar" style="${barStyle}">
             ${w > 8 ? `<span class="bar-label">${escHtml(item.name)}</span>` : ''}
           </div>
@@ -325,8 +428,9 @@ async function refresh() {
   _refreshing = true;
   try {
     showState('loading');
-    const items = await loadItems();
-    renderGantt(items);
+    _allItems = await loadItems();
+    const filtered = applyFilters(_allItems);
+    renderGantt(filtered, true);
     showState('gantt');
   } catch (err) {
     console.error(err);
@@ -337,5 +441,62 @@ async function refresh() {
   }
 }
 
+// ─── Theme Toggle ─────────────────────────────────────────────────────────────
+
+function toggleTheme() {
+  const body = document.body;
+  const isDark = body.classList.contains('dark-mode');
+
+  if (isDark) {
+    body.classList.remove('dark-mode');
+    body.classList.add('light-mode');
+    localStorage.setItem('theme', 'light');
+  } else {
+    body.classList.add('dark-mode');
+    body.classList.remove('light-mode');
+    localStorage.setItem('theme', 'dark');
+  }
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('theme') || 'dark';
+  if (saved === 'light') {
+    document.body.classList.add('light-mode');
+  } else {
+    document.body.classList.add('dark-mode');
+  }
+}
+
+// ─── Fullscreen ───────────────────────────────────────────────────────────────
+
+function toggleFullscreen() {
+  const el = document.documentElement;
+
+  if (!document.fullscreenElement) {
+    // Try to enter fullscreen
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(err => {
+        console.warn('Fullscreen request failed:', err);
+        // Fallback: maximize via CSS
+        document.body.classList.add('fullscreen-fallback');
+      });
+    } else {
+      // Fallback for browsers/webviews that don't support Fullscreen API
+      document.body.classList.add('fullscreen-fallback');
+    }
+  } else {
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+    document.body.classList.remove('fullscreen-fallback');
+  }
+}
+
 window.refresh = refresh;
+window.setYear = setYear;
+window.setStatus = setStatus;
+window.toggleTheme = toggleTheme;
+window.toggleFullscreen = toggleFullscreen;
+initTheme();
 window.addEventListener('load', refresh);

@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Technology Roadmap</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 
@@ -18,14 +17,45 @@
   --dim:#7A92B0;
   --faint:#3D5470;
   --today:#FF6B35;
+  --label-width:300px;
+}
+
+body.dark-mode{
+  --bg:#080D1A;
+  --surface:#0F1629;
+  --surface2:#162033;
+  --border:#1E2D45;
+  --border2:#253553;
+  --text:#E2EBF6;
+  --dim:#7A92B0;
+  --faint:#3D5470;
+  --today:#FF6B35;
+}
+
+body.light-mode{
+  --bg:#F8FAFC;
+  --surface:#FFFFFF;
+  --surface2:#F1F5F9;
+  --border:#E2E8F0;
+  --border2:#CBD5E1;
+  --text:#0F172A;
+  --dim:#475569;
+  --faint:#94A3B8;
+  --today:#FF6B35;
 }
 
 body{
-  font-family:'JetBrains Mono',monospace;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   background:var(--bg);
   color:var(--text);
   min-height:100vh;
-  font-size:12px;
+  font-size:14px;
+  overflow:hidden;
+}
+
+body.fullscreen-fallback,
+:fullscreen body{
+  overflow:auto;
 }
 
 /* ── Header ── */
@@ -38,8 +68,8 @@ body{
   gap:12px;
 }
 .header-title{
-  font-family:'Syne',sans-serif;
-  font-size:16px;font-weight:800;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:20px;font-weight:800;
   letter-spacing:.03em;white-space:nowrap;
 }
 .header-title span{color:#3B82F6}
@@ -52,20 +82,95 @@ body{
   background:var(--surface2);
   border:1px solid var(--border);
   color:var(--dim);
-  padding:5px 11px;border-radius:4px;
+  padding:7px 14px;border-radius:4px;
   cursor:pointer;
-  font-family:'JetBrains Mono',monospace;
-  font-size:10px;letter-spacing:.05em;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:12px;letter-spacing:.05em;
   transition:border-color .2s,color .2s;white-space:nowrap;
 }
 .btn:hover{border-color:#3B82F6;color:#3B82F6}
+#filters{display:flex;gap:8px;flex-wrap:wrap}
+.filter-select{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:6px 32px 6px 12px;border-radius:4px;
+  cursor:pointer;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:12px;letter-spacing:.03em;
+  transition:border-color .2s;
+  outline:none;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%237A92B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:10px;
+}
+body.light-mode .filter-select{
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.filter-select:hover{border-color:var(--border2)}
+.filter-select:focus{border-color:#3B82F6}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── Landing Page ── */
+#landing{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  height:100vh;gap:24px;
+}
+#landing h1{
+  font-size:32px;font-weight:800;
+  letter-spacing:.03em;
+  color:var(--text);
+  text-align:center;
+  margin:0;
+}
+#landing h1 span{color:#3B82F6}
+#landing .landing-btn{
+  background:#3B82F6;
+  border:none;
+  color:#fff;
+  padding:16px 32px;
+  border-radius:8px;
+  cursor:pointer;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;font-weight:600;
+  letter-spacing:.05em;
+  transition:background .2s;
+}
+#landing .landing-btn:hover{
+  background:#2563EB;
+}
+body.fullscreen-fallback #landing,
+:fullscreen #landing{
+  display:none;
+}
+
+/* ── Main Content ── */
+.header,#gantt,.state{display:none}
+body.fullscreen-fallback .header,
+body.fullscreen-fallback .state,
+:fullscreen .header,
+:fullscreen .state{
+  display:flex;
+}
+.header{
+  flex-direction:row;
+}
+body.fullscreen-fallback #gantt,
+:fullscreen #gantt{
+  display:block;
+}
 
 /* ── States ── */
 .state{
-  display:flex;flex-direction:column;
+  flex-direction:column;
   align-items:center;justify-content:center;
-  height:calc(100vh - 53px);gap:14px;
-  color:var(--dim);font-size:12px;text-align:center;padding:20px;
+  height:calc(100vh - 53px);gap:16px;
+  color:var(--dim);font-size:14px;text-align:center;padding:20px;
 }
 .spinner{
   width:30px;height:30px;
@@ -76,12 +181,13 @@ body{
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-icon{font-size:28px}
-.empty{color:var(--dim);line-height:1.8}
+.empty{color:var(--dim);line-height:1.8;max-width:500px;text-align:center}
 .empty b{color:var(--text)}
 
 /* ── Gantt wrapper ── */
-#gantt{display:none;overflow:auto;height:calc(100vh - 53px)}
-.gantt-wrap{min-width:900px}
+#gantt{overflow:auto;height:calc(100vh - 53px)}
+#gantt:has(.empty){display:flex !important;align-items:center;justify-content:center}
+.gantt-wrap{position:relative;min-width:900px}
 
 /* ── Timeline header ── */
 .tl-header{
@@ -91,63 +197,75 @@ body{
   border-bottom:1px solid var(--border2);
 }
 .row-lbl-hd{
-  width:260px;min-width:260px;
-  padding:6px 14px;
-  font-size:9px;color:var(--faint);
+  width:var(--label-width);min-width:var(--label-width);
+  padding:8px 16px;
+  font-size:11px;color:var(--dim);font-weight:700;
   text-transform:uppercase;letter-spacing:.1em;
   border-right:1px solid var(--border2);
-  display:flex;align-items:flex-end;
+  display:flex;align-items:center;justify-content:center;
 }
 .tl-cols{flex:1;overflow:hidden}
 .tl-quarters,.tl-months{display:flex}
 .tl-q{
-  font-size:9px;color:var(--dim);
-  padding:4px 8px;
-  border-right:1px solid var(--border2);
+  font-size:11px;color:var(--dim);
+  padding:6px 0;
   text-transform:uppercase;letter-spacing:.07em;
   font-weight:600;
   border-bottom:1px solid var(--border);
+  text-align:center;
 }
 .tl-m{
   flex:1;
-  font-size:9px;color:var(--faint);
-  padding:3px 0;text-align:center;
+  font-size:11px;color:var(--faint);
+  padding:4px 0;text-align:center;
   border-right:1px solid var(--border);
+  box-sizing:border-box;
 }
 .tl-m-now{color:var(--today)}
 
 /* ── Group header ── */
 .group-hd{
-  display:flex;align-items:center;gap:8px;
-  padding:7px 14px;
+  display:flex;align-items:center;
   background:var(--surface2);
   border-bottom:1px solid var(--border);
+  height:40px;
 }
-.group-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
-.group-name{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
-.group-ct{font-size:9px;color:var(--faint)}
+.group-lbl{
+  width:var(--label-width);min-width:var(--label-width);
+  height:100%;
+  padding:0 16px;
+  border-right:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.group-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.group-name{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.group-ct{font-size:11px;color:var(--faint)}
+.group-bar-area{
+  flex:1;position:relative;height:100%;
+  display:flex;overflow:hidden;
+}
 
 /* ── Item row ── */
 .g-row{
   display:flex;align-items:center;
   border-bottom:1px solid var(--border);
-  height:38px;
+  height:48px;
   transition:background .15s;
 }
 .g-row:hover{background:var(--surface2)}
 .row-lbl{
-  width:260px;min-width:260px;
+  width:var(--label-width);min-width:var(--label-width);
   height:100%;
-  padding:0 14px;
+  padding:0 16px;
   border-right:1px solid var(--border);
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:10px;
   overflow:hidden;
 }
 .row-name{
-  flex:1;font-size:11px;
+  flex:1;font-size:13px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.row-owner{font-size:10px;color:var(--faint);white-space:nowrap}
+.row-owner{font-size:12px;color:var(--faint);white-space:nowrap}
 
 /* ── Bar area ── */
 .bar-area{
@@ -162,26 +280,37 @@ body{
 .grid-col-q{border-right-color:var(--border2)}
 .today-line{
   position:absolute;top:0;bottom:0;
-  width:1px;background:var(--today);
-  pointer-events:none;z-index:10;
+  width:2px;background:var(--today);
+  pointer-events:none;z-index:50;
 }
 .bar{
   position:absolute;top:50%;
   transform:translateY(-50%);
-  height:20px;border-radius:3px;
+  height:26px;border-radius:4px;
   display:flex;align-items:center;
-  padding:0 7px;
+  padding:0 9px;
   cursor:pointer;
   transition:filter .15s;
   min-width:4px;
   overflow:hidden;
+  z-index:10;
 }
-.bar:hover{filter:brightness(1.25);z-index:20}
+.bar:hover{filter:brightness(1.25);z-index:60}
+body.light-mode .bar:hover{filter:brightness(0.85)}
 .bar-label{
-  font-size:9px;
+  font-size:11px;
   color:rgba(255,255,255,.9);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   pointer-events:none;
+}
+body.light-mode .bar-label{
+  color:rgba(0,0,0,.8);
+}
+body.light-mode .bar[style*="opacity:0.4"]{
+  opacity:0.6 !important;
+}
+body.light-mode .bar[style*="opacity:0.25"]{
+  opacity:0.5 !important;
 }
 
 /* ── Tooltip ── */
@@ -189,33 +318,66 @@ body{
   position:fixed;display:none;
   background:var(--surface2);
   border:1px solid var(--border2);
-  border-radius:6px;padding:12px;
-  font-size:11px;color:var(--text);
+  border-radius:6px;padding:14px;
+  font-size:13px;color:var(--text);
   pointer-events:none;z-index:1000;
-  width:220px;
+  width:260px;
   box-shadow:0 8px 28px rgba(0,0,0,.5);
 }
-.tt-title{font-weight:600;font-size:12px;margin-bottom:9px;line-height:1.3}
-.tt-row{display:flex;gap:8px;margin-bottom:5px;align-items:center}
-.tt-lbl{color:var(--faint);min-width:64px;font-size:10px}
-.tt-badge{font-size:9px;padding:1px 6px;border-radius:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.tt-title{font-weight:600;font-size:14px;margin-bottom:10px;line-height:1.3}
+.tt-row{display:flex;gap:10px;margin-bottom:6px;align-items:center}
+.tt-lbl{color:var(--faint);min-width:70px;font-size:12px}
+.tt-badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* ── Fullscreen fallback ── */
+body.fullscreen-fallback{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  z-index:9999;width:100vw;height:100vh;
+  overflow:auto;
+}
+
+/* ── Responsive ── */
+@media (max-width:800px){
+  :root{
+    --label-width:180px;
+  }
+  .header{flex-direction:column;align-items:stretch;gap:8px;padding:8px 12px}
+  .header-title{font-size:14px}
+  .header-right{flex-direction:column;gap:8px}
+  #filters{order:1}
+  .header-actions{order:2}
+  .btn{padding:4px 9px;font-size:9px}
+  .filter-select{font-size:9px;padding:3px 24px 3px 8px;background-position:right 8px center;background-size:8px}
+  .row-lbl{padding:0 10px}
+  .row-lbl-hd{padding:6px 10px}
+  .row-name{font-size:10px}
+  .row-owner{font-size:9px}
+  .gantt-wrap{min-width:600px}
+}
 </style>
 </head>
 <body>
 
+<div id="landing">
+  <h1><span>TECHNOLOGY ROADMAP</span></h1>
+  <button class="landing-btn" onclick="toggleFullscreen()">⛶ VIEW FULLSCREEN</button>
+</div>
+
 <div class="header">
   <div class="header-title"><span>TECHNOLOGY ROADMAP</span></div>
   <div class="header-right">
-    <div id="legend"></div>
-    <span id="count"></span>
-    <button class="btn" onclick="refresh()">↻ REFRESH</button>
-
+    <div id="filters"></div>
+    <div class="header-actions">
+      <button class="btn" onclick="refresh()">↻ REFRESH</button>
+      <button class="btn" onclick="toggleTheme()">◐ THEME</button>
+      <button class="btn" onclick="toggleFullscreen()">⛶ FULLSCREEN</button>
+    </div>
   </div>
 </div>
 
