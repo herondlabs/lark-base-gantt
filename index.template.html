@@ -205,6 +205,13 @@ body{
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* ── Fullscreen fallback ── */
+body.fullscreen-fallback{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  z-index:9999;width:100vw;height:100vh;
+  overflow:auto;
+}
 </style>
 </head>
 <body>
@@ -215,7 +222,7 @@ body{
     <div id="legend"></div>
     <span id="count"></span>
     <button class="btn" onclick="refresh()">↻ REFRESH</button>
-
+    <button class="btn" onclick="toggleFullscreen()">⛶ FULLSCREEN</button>
   </div>
 </div>
 

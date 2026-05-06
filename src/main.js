@@ -337,5 +337,32 @@ async function refresh() {
   }
 }
 
+// ─── Fullscreen ───────────────────────────────────────────────────────────────
+
+function toggleFullscreen() {
+  const el = document.documentElement;
+
+  if (!document.fullscreenElement) {
+    // Try to enter fullscreen
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(err => {
+        console.warn('Fullscreen request failed:', err);
+        // Fallback: maximize via CSS
+        document.body.classList.add('fullscreen-fallback');
+      });
+    } else {
+      // Fallback for browsers/webviews that don't support Fullscreen API
+      document.body.classList.add('fullscreen-fallback');
+    }
+  } else {
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+    document.body.classList.remove('fullscreen-fallback');
+  }
+}
+
 window.refresh = refresh;
+window.toggleFullscreen = toggleFullscreen;
 window.addEventListener('load', refresh);
