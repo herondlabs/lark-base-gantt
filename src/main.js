@@ -35,6 +35,7 @@ const STATUS_BADGE = {
 };
 
 const COMPONENT_ORDER = ['Operation', 'Infrastructure', 'Quality', 'Security'];
+const STATUS_ORDER = ['In Progress', 'Pending', 'Done', 'Not Started', 'Archived'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -339,6 +340,25 @@ function renderGantt(items, updateYearFilter = false) {
 
   // ── Groups + Rows ──
   sortedGroups.forEach(([comp, compItems]) => {
+    // Sort items by status within each component group
+    compItems.sort((a, b) => {
+      const ai = STATUS_ORDER.indexOf(a.status);
+      const bi = STATUS_ORDER.indexOf(b.status);
+      if (ai < 0 && bi < 0) return 0;
+      if (ai < 0) return 1;
+      if (bi < 0) return -1;
+
+      // If status different, sort by status
+      if (ai !== bi) return ai - bi;
+
+      // Same status, sort by start date (earlier first)
+      const startDiff = a.startDate - b.startDate;
+      if (startDiff !== 0) return startDiff;
+
+      // Same start date, sort by end date (earlier first)
+      return a.endDate - b.endDate;
+    });
+
     const color = getColor(comp);
     const rgb = hexToRgb(color);
 
