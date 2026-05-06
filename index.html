@@ -1825,7 +1825,7 @@ html body {
         ${d.map(E=>{let y=E.getMonth()===new Date().getMonth()&&E.getFullYear()===new Date().getFullYear(),$=new Date(E.getFullYear(),E.getMonth()+1,0).getDate();return`<div class="tl-m ${y?"tl-m-now":""}" style="flex:${$}">${E.toLocaleString("en-US",{month:"short"})}</div>`}).join("")}
       </div>
     </div>
-  </div>`,v.forEach(([E,y])=>{y.sort((F,I)=>{let O=D6.indexOf(F.status),A=D6.indexOf(I.status);return O<0&&A<0?0:O<0?1:A<0?-1:O-A});let $=zle(E),C=Lle($);w+=`<div class="group-hd">
+  </div>`,v.forEach(([E,y])=>{y.sort((F,I)=>{let O=D6.indexOf(F.status),A=D6.indexOf(I.status);if(O<0&&A<0)return 0;if(O<0)return 1;if(A<0)return-1;if(O!==A)return O-A;let D=F.startDate-I.startDate;return D!==0?D:F.endDate-I.endDate});let $=zle(E),C=Lle($);w+=`<div class="group-hd">
       <div class="group-lbl">
         <span class="group-dot" style="background:${$}"></span>
         <span class="group-name" style="color:${$}">${Ao(E)}</span>
