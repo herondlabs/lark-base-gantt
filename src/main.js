@@ -19,10 +19,10 @@ const COMPONENT_COLORS = {
 };
 
 const STATUS_CONFIG = {
-  'Done':        { opacity: 0.4,  glow: false, dashed: false },
-  'In Progress': { opacity: 1.0,  glow: true,  dashed: false },
-  'Pending':     { opacity: 0.7,  glow: false, dashed: true  },
-  'Not Started': { opacity: 0.25, glow: false, dashed: true  },
+  'Done':        { opacity: 0.4,  glow: false, dashed: false, stripe: false },
+  'In Progress': { opacity: 1.0,  glow: true,  dashed: false, stripe: false },
+  'Pending':     { opacity: 0.7,  glow: false, dashed: true,  stripe: true  },
+  'Not Started': { opacity: 0.25, glow: false, dashed: true,  stripe: false },
 };
 
 const STATUS_BADGE = {
@@ -271,11 +271,16 @@ function renderGantt(items, updateYearFilter = false) {
     }
   }
 
-  // Today position
-  const todayPct = pct(new Date());
+  // Today position (normalized to start of day)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayPct = pct(today);
 
   // Build HTML
-  let html = `<div class="gantt-wrap">`;
+  // Today line offset: label column + percentage of timeline area
+  // Formula: labelWidth + (todayPct% - labelWidth * todayPct/100)
+  let html = `<div class="gantt-wrap" style="--today-pct:${todayPct}">
+    <div class="today-line" style="left:calc(var(--label-width) + var(--today-pct) * 1% - var(--label-width) * var(--today-pct) / 100)"></div>`;
 
   // ── Timeline Header ──
   html += `<div class="tl-header">
@@ -300,22 +305,42 @@ function renderGantt(items, updateYearFilter = false) {
     const rgb = hexToRgb(color);
 
     html += `<div class="group-hd">
-      <span class="group-dot" style="background:${color}"></span>
-      <span class="group-name" style="color:${color}">${escHtml(comp)}</span>
-      <span class="group-ct">${compItems.length}</span>
+      <div class="group-lbl">
+        <span class="group-dot" style="background:${color}"></span>
+        <span class="group-name" style="color:${color}">${escHtml(comp)}</span>
+        <span class="group-ct">${compItems.length}</span>
+      </div>
+      <div class="group-bar-area">
+        ${months.map(m => {
+          const isQstart = m.getMonth() % 3 === 0;
+          const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+          return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
+        }).join('')}
+      </div>
     </div>`;
 
     compItems.forEach(item => {
       const sp = pct(item.startDate);
-      const ep = pct(item.endDate);
+      // End date: extend to end of day (next day at 00:00)
+      const endPlusOneDay = new Date(item.endDate);
+      endPlusOneDay.setDate(endPlusOneDay.getDate() + 1);
+      const ep = pct(endPlusOneDay);
       const w = Math.max(ep - sp, 0.5);
       const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG['Not Started'];
       const badge = STATUS_BADGE[item.status] || STATUS_BADGE['Not Started'];
       const ownerFirst = (item.owner || '').split(' ')[0];
 
-      const barStyle = sc.dashed
-        ? `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`
-        : `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
+      let barStyle;
+      if (sc.dashed && sc.stripe) {
+        // Pending: diagonal stripes
+        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:repeating-linear-gradient(45deg,rgba(${rgb},0.15),rgba(${rgb},0.15) 4px,transparent 4px,transparent 8px);opacity:${sc.opacity}`;
+      } else if (sc.dashed) {
+        // Not Started: solid light fill
+        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
+      } else {
+        // Done, In Progress: solid bar
+        barStyle = `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
+      }
 
       html += `<div class="g-row"
         data-name="${escHtml(item.name)}"
@@ -337,7 +362,6 @@ function renderGantt(items, updateYearFilter = false) {
             const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
             return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
           }).join('')}
-          <div class="today-line" style="left:${todayPct}%"></div>
           <div class="bar" style="${barStyle}">
             ${w > 8 ? `<span class="bar-label">${escHtml(item.name)}</span>` : ''}
           </div>

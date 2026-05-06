@@ -17,6 +17,7 @@
   --dim:#7A92B0;
   --faint:#3D5470;
   --today:#FF6B35;
+  --label-width:300px;
 }
 
 body.dark-mode{
@@ -93,12 +94,22 @@ body.fullscreen-fallback,
   background:var(--surface2);
   border:1px solid var(--border);
   color:var(--text);
-  padding:6px 12px;border-radius:4px;
+  padding:6px 32px 6px 12px;border-radius:4px;
   cursor:pointer;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   font-size:12px;letter-spacing:.03em;
   transition:border-color .2s;
   outline:none;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%237A92B0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:10px;
+}
+body.light-mode .filter-select{
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 .filter-select:hover{border-color:var(--border2)}
 .filter-select:focus{border-color:#3B82F6}
@@ -170,12 +181,13 @@ body.fullscreen-fallback #gantt,
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-icon{font-size:28px}
-.empty{color:var(--dim);line-height:1.8}
+.empty{color:var(--dim);line-height:1.8;max-width:500px;text-align:center}
 .empty b{color:var(--text)}
 
 /* ── Gantt wrapper ── */
 #gantt{overflow:auto;height:calc(100vh - 53px)}
-.gantt-wrap{min-width:900px}
+#gantt:has(.empty){display:flex !important;align-items:center;justify-content:center}
+.gantt-wrap{position:relative;min-width:900px}
 
 /* ── Timeline header ── */
 .tl-header{
@@ -185,7 +197,7 @@ body.fullscreen-fallback #gantt,
   border-bottom:1px solid var(--border2);
 }
 .row-lbl-hd{
-  width:300px;min-width:300px;
+  width:var(--label-width);min-width:var(--label-width);
   padding:8px 16px;
   font-size:11px;color:var(--dim);font-weight:700;
   text-transform:uppercase;letter-spacing:.1em;
@@ -213,14 +225,25 @@ body.fullscreen-fallback #gantt,
 
 /* ── Group header ── */
 .group-hd{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 16px;
+  display:flex;align-items:center;
   background:var(--surface2);
   border-bottom:1px solid var(--border);
+  height:40px;
+}
+.group-lbl{
+  width:var(--label-width);min-width:var(--label-width);
+  height:100%;
+  padding:0 16px;
+  border-right:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
 }
 .group-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 .group-name{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
 .group-ct{font-size:11px;color:var(--faint)}
+.group-bar-area{
+  flex:1;position:relative;height:100%;
+  display:flex;overflow:hidden;
+}
 
 /* ── Item row ── */
 .g-row{
@@ -231,7 +254,7 @@ body.fullscreen-fallback #gantt,
 }
 .g-row:hover{background:var(--surface2)}
 .row-lbl{
-  width:300px;min-width:300px;
+  width:var(--label-width);min-width:var(--label-width);
   height:100%;
   padding:0 16px;
   border-right:1px solid var(--border);
@@ -257,8 +280,8 @@ body.fullscreen-fallback #gantt,
 .grid-col-q{border-right-color:var(--border2)}
 .today-line{
   position:absolute;top:0;bottom:0;
-  width:1px;background:var(--today);
-  pointer-events:none;z-index:10;
+  width:2px;background:var(--today);
+  pointer-events:none;z-index:50;
 }
 .bar{
   position:absolute;top:50%;
@@ -270,8 +293,10 @@ body.fullscreen-fallback #gantt,
   transition:filter .15s;
   min-width:4px;
   overflow:hidden;
+  z-index:10;
 }
-.bar:hover{filter:brightness(1.25);z-index:20}
+.bar:hover{filter:brightness(1.25);z-index:60}
+body.light-mode .bar:hover{filter:brightness(0.85)}
 .bar-label{
   font-size:11px;
   color:rgba(255,255,255,.9);
@@ -319,15 +344,18 @@ body.fullscreen-fallback{
 
 /* ── Responsive ── */
 @media (max-width:800px){
+  :root{
+    --label-width:180px;
+  }
   .header{flex-direction:column;align-items:stretch;gap:8px;padding:8px 12px}
   .header-title{font-size:14px}
   .header-right{flex-direction:column;gap:8px}
   #filters{order:1}
   .header-actions{order:2}
   .btn{padding:4px 9px;font-size:9px}
-  .filter-select{font-size:9px;padding:3px 8px}
-  .row-lbl{width:180px;min-width:180px;padding:0 10px}
-  .row-lbl-hd{width:180px;min-width:180px;padding:6px 10px}
+  .filter-select{font-size:9px;padding:3px 24px 3px 8px;background-position:right 8px center;background-size:8px}
+  .row-lbl{padding:0 10px}
+  .row-lbl-hd{padding:6px 10px}
   .row-name{font-size:10px}
   .row-owner{font-size:9px}
   .gantt-wrap{min-width:600px}
