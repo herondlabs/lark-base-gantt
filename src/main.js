@@ -337,6 +337,32 @@ async function refresh() {
   }
 }
 
+// ─── Theme Toggle ─────────────────────────────────────────────────────────────
+
+function toggleTheme() {
+  const body = document.body;
+  const isDark = body.classList.contains('dark-mode');
+
+  if (isDark) {
+    body.classList.remove('dark-mode');
+    body.classList.add('light-mode');
+    localStorage.setItem('theme', 'light');
+  } else {
+    body.classList.add('dark-mode');
+    body.classList.remove('light-mode');
+    localStorage.setItem('theme', 'dark');
+  }
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('theme') || 'dark';
+  if (saved === 'light') {
+    document.body.classList.add('light-mode');
+  } else {
+    document.body.classList.add('dark-mode');
+  }
+}
+
 // ─── Fullscreen ───────────────────────────────────────────────────────────────
 
 function toggleFullscreen() {
@@ -364,5 +390,7 @@ function toggleFullscreen() {
 }
 
 window.refresh = refresh;
+window.toggleTheme = toggleTheme;
 window.toggleFullscreen = toggleFullscreen;
+initTheme();
 window.addEventListener('load', refresh);

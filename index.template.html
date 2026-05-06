@@ -20,6 +20,30 @@
   --today:#FF6B35;
 }
 
+body.dark-mode{
+  --bg:#080D1A;
+  --surface:#0F1629;
+  --surface2:#162033;
+  --border:#1E2D45;
+  --border2:#253553;
+  --text:#E2EBF6;
+  --dim:#7A92B0;
+  --faint:#3D5470;
+  --today:#FF6B35;
+}
+
+body.light-mode{
+  --bg:#F8FAFC;
+  --surface:#FFFFFF;
+  --surface2:#F1F5F9;
+  --border:#E2E8F0;
+  --border2:#CBD5E1;
+  --text:#0F172A;
+  --dim:#475569;
+  --faint:#94A3B8;
+  --today:#FF6B35;
+}
+
 body{
   font-family:'JetBrains Mono',monospace;
   background:var(--bg);
@@ -222,6 +246,7 @@ body.fullscreen-fallback{
     <div id="legend"></div>
     <span id="count"></span>
     <button class="btn" onclick="refresh()">↻ REFRESH</button>
+    <button class="btn" onclick="toggleTheme()">◐ THEME</button>
     <button class="btn" onclick="toggleFullscreen()">⛶ FULLSCREEN</button>
   </div>
 </div>
