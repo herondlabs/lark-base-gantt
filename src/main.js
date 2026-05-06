@@ -19,11 +19,11 @@ const COMPONENT_COLORS = {
 };
 
 const STATUS_CONFIG = {
-  'Done':        { opacity: 0.4,  glow: false, dashed: false, stripe: false },
-  'In Progress': { opacity: 1.0,  glow: true,  dashed: false, stripe: false },
-  'Pending':     { opacity: 0.7,  glow: false, dashed: true,  stripe: true  },
-  'Archived':    { opacity: 0.3,  glow: false, dashed: false, stripe: false },
-  'Not Started': { opacity: 0.25, glow: false, dashed: true,  stripe: false },
+  'Done':        { opacity: 0.5, glow: false, dashed: false, stripe: false, bordered: false },
+  'In Progress': { opacity: 1.0, glow: true,  dashed: false, stripe: false, bordered: false },
+  'Pending':     { opacity: 1.0, glow: false, dashed: false, stripe: false, bordered: true  },
+  'Archived':    { opacity: 0.5, glow: false, dashed: true,  stripe: true,  bordered: false },
+  'Not Started': { opacity: 0.5, glow: false, dashed: true,  stripe: false, bordered: false },
 };
 
 const STATUS_BADGE = {
@@ -370,11 +370,14 @@ function renderGantt(items, updateYearFilter = false) {
 
       let barStyle;
       if (sc.dashed && sc.stripe) {
-        // Pending: diagonal stripes
+        // Archived: dashed border + diagonal stripes
         barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:repeating-linear-gradient(45deg,rgba(${rgb},0.15),rgba(${rgb},0.15) 4px,transparent 4px,transparent 8px);opacity:${sc.opacity}`;
       } else if (sc.dashed) {
-        // Not Started: solid light fill
+        // Not Started: dashed border + solid light fill
         barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
+      } else if (sc.bordered) {
+        // Pending: solid border + opaque fill
+        barStyle = `left:${sp}%;width:${w}%;border:1.5px solid ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
       } else {
         // Done, In Progress: solid bar
         barStyle = `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
