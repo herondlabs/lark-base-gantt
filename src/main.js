@@ -163,7 +163,8 @@ async function loadItems() {
 
 let _allItems = [];
 let _selectedYear = String(new Date().getFullYear());
-let _selectedStatus = 'all';
+let _selectedStatuses = []; // Empty array means "all statuses"
+let _collapsedComponents = new Set(); // Set of component names that are collapsed
 
 function getYears(items) {
   const years = new Set();
@@ -196,8 +197,11 @@ function applyFilters(items) {
   }
 
   // Status filter
-  if (_selectedStatus !== 'all') {
-    filtered = filtered.filter(item => item.status === _selectedStatus);
+  if (_selectedStatuses.length > 0) {
+    filtered = filtered.filter(item => _selectedStatuses.includes(item.status));
+  } else {
+    // No statuses selected = show nothing
+    filtered = [];
   }
 
   return filtered;
@@ -208,10 +212,80 @@ function setYear(year) {
   renderGantt(applyFilters(_allItems));
 }
 
-function setStatus(status) {
-  _selectedStatus = status;
-  renderGantt(applyFilters(_allItems));
+function toggleStatus(status) {
+  const idx = _selectedStatuses.indexOf(status);
+  if (idx >= 0) {
+    _selectedStatuses.splice(idx, 1);
+  } else {
+    _selectedStatuses.push(status);
+  }
+
+  // Update "All" checkbox based on whether all are selected
+  const dropdown = document.getElementById('statusDropdown');
+  if (dropdown) {
+    const allStatuses = getStatuses(_allItems);
+    const allCheckbox = dropdown.querySelector('input[type="checkbox"]');
+    if (allCheckbox) {
+      allCheckbox.checked = _selectedStatuses.length === allStatuses.length;
+    }
+  }
+
+  renderGantt(applyFilters(_allItems), false);
 }
+
+function toggleAllStatuses(event) {
+  const allStatuses = getStatuses(_allItems);
+  const dropdown = document.getElementById('statusDropdown');
+
+  if (event.target.checked) {
+    // "All" checked => select all
+    _selectedStatuses = [...allStatuses];
+
+    // Check all individual checkboxes
+    if (dropdown) {
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach((cb, i) => {
+        if (i > 0) cb.checked = true;
+      });
+    }
+  } else {
+    // "All" unchecked => deselect all
+    _selectedStatuses = [];
+
+    // Uncheck all individual checkboxes
+    if (dropdown) {
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach((cb, i) => {
+        if (i > 0) cb.checked = false;
+      });
+    }
+  }
+
+  renderGantt(applyFilters(_allItems), false);
+}
+
+function toggleComponentCollapse(component) {
+  if (_collapsedComponents.has(component)) {
+    _collapsedComponents.delete(component);
+  } else {
+    _collapsedComponents.add(component);
+  }
+  renderGantt(applyFilters(_allItems), false);
+}
+
+function toggleStatusDropdown() {
+  const dropdown = document.getElementById('statusDropdown');
+  if (dropdown) {
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('statusDropdown');
+  const filterBtn = e.target.closest('.filter-btn');
+  if (dropdown && !e.target.closest('.status-filter') && !filterBtn) {
+    dropdown.style.display = 'none';
+  }
+});
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
@@ -290,8 +364,13 @@ function renderGantt(items, updateYearFilter = false) {
   if (updateYearFilter && _allItems.length > 0) {
     const years = getYears(_allItems);
     const statuses = getStatuses(_allItems);
+    const allSelected = _selectedStatuses.length === statuses.length;
     const filtersContainer = document.getElementById('filters');
     if (filtersContainer) {
+      // Check if dropdown was open before re-render
+      const oldDropdown = document.getElementById('statusDropdown');
+      const wasOpen = oldDropdown && oldDropdown.style.display !== 'none';
+
       filtersContainer.innerHTML = `
         <select class="filter-select" onchange="setYear(this.value)">
           <option value="all" ${_selectedYear === 'all' ? 'selected' : ''}>All Years</option>
@@ -299,12 +378,27 @@ function renderGantt(items, updateYearFilter = false) {
             `<option value="${y}" ${_selectedYear === String(y) ? 'selected' : ''}>${y}</option>`
           ).join('')}
         </select>
-        <select class="filter-select" onchange="setStatus(this.value)">
-          <option value="all" ${_selectedStatus === 'all' ? 'selected' : ''}>All Statuses</option>
-          ${statuses.map(s =>
-            `<option value="${s}" ${_selectedStatus === s ? 'selected' : ''}>${escHtml(s)}</option>`
-          ).join('')}
-        </select>
+        <div class="status-filter">
+          <button class="filter-btn" onclick="toggleStatusDropdown()">
+            Status
+          </button>
+          <div class="status-dropdown" id="statusDropdown" style="display:${wasOpen ? 'block' : 'none'}">
+            <label class="status-option">
+              <input type="checkbox"
+                ${allSelected ? 'checked' : ''}
+                onchange="toggleAllStatuses(event)">
+              <span><b>All</b></span>
+            </label>
+            ${statuses.map(s => `
+              <label class="status-option">
+                <input type="checkbox" value="${escHtml(s)}"
+                  ${_selectedStatuses.includes(s) ? 'checked' : ''}
+                  onchange="toggleStatus('${escHtml(s).replace(/'/g, "\\'")}')">
+                <span>${escHtml(s)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
       `;
     }
   }
@@ -363,8 +457,10 @@ function renderGantt(items, updateYearFilter = false) {
     const rgb = hexToRgb(color);
 
     html += `<div class="group-hd">
-      <div class="group-lbl">
-        <span class="group-dot" style="background:${color}"></span>
+      <div class="group-lbl" style="cursor:pointer" onclick="toggleComponentCollapse('${escHtml(comp).replace(/'/g, "\\'")}')">
+        ${_collapsedComponents.has(comp)
+          ? `<span class="group-arrow" style="background:${color}"></span>`
+          : `<span class="group-dot" style="background:${color}"></span>`}
         <span class="group-name" style="color:${color}">${escHtml(comp)}</span>
         <span class="group-ct">${compItems.length}</span>
       </div>
@@ -377,58 +473,61 @@ function renderGantt(items, updateYearFilter = false) {
       </div>
     </div>`;
 
-    compItems.forEach(item => {
-      const sp = pct(item.startDate);
-      // End date: extend to end of day (next day at 00:00)
-      const endPlusOneDay = new Date(item.endDate);
-      endPlusOneDay.setDate(endPlusOneDay.getDate() + 1);
-      const ep = pct(endPlusOneDay);
-      const w = Math.max(ep - sp, 0.5);
-      const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG['Not Started'];
-      const badge = STATUS_BADGE[item.status] || STATUS_BADGE['Not Started'];
-      const ownerFirst = (item.owner || '').split(' ')[0];
+    // Only render rows if component is not collapsed
+    if (!_collapsedComponents.has(comp)) {
+      compItems.forEach(item => {
+        const sp = pct(item.startDate);
+        // End date: extend to end of day (next day at 00:00)
+        const endPlusOneDay = new Date(item.endDate);
+        endPlusOneDay.setDate(endPlusOneDay.getDate() + 1);
+        const ep = pct(endPlusOneDay);
+        const w = Math.max(ep - sp, 0.5);
+        const sc = STATUS_CONFIG[item.status] || STATUS_CONFIG['Not Started'];
+        const badge = STATUS_BADGE[item.status] || STATUS_BADGE['Not Started'];
+        const ownerFirst = (item.owner || '').split(' ')[0];
 
-      let barStyle;
-      if (sc.dashed && sc.stripe) {
-        // Archived: dashed border + diagonal stripes
-        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:repeating-linear-gradient(45deg,rgba(${rgb},0.15),rgba(${rgb},0.15) 4px,transparent 4px,transparent 8px);opacity:${sc.opacity}`;
-      } else if (sc.dashed) {
-        // Not Started: dashed border + solid light fill
-        barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
-      } else if (sc.bordered) {
-        // Pending: solid border + opaque fill
-        barStyle = `left:${sp}%;width:${w}%;border:1.5px solid ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
-      } else {
-        // Done, In Progress: solid bar
-        barStyle = `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
-      }
+        let barStyle;
+        if (sc.dashed && sc.stripe) {
+          // Archived: dashed border + diagonal stripes
+          barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:repeating-linear-gradient(45deg,rgba(${rgb},0.15),rgba(${rgb},0.15) 4px,transparent 4px,transparent 8px);opacity:${sc.opacity}`;
+        } else if (sc.dashed) {
+          // Not Started: dashed border + solid light fill
+          barStyle = `left:${sp}%;width:${w}%;border:1.5px dashed ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
+        } else if (sc.bordered) {
+          // Pending: solid border + opaque fill
+          barStyle = `left:${sp}%;width:${w}%;border:1.5px solid ${color};background:rgba(${rgb},0.15);opacity:${sc.opacity}`;
+        } else {
+          // Done, In Progress: solid bar
+          barStyle = `left:${sp}%;width:${w}%;background:${color};opacity:${sc.opacity}${sc.glow ? `;box-shadow:0 0 10px rgba(${rgb},0.5)` : ''}`;
+        }
 
-      html += `<div class="g-row"
-        data-name="${escHtml(item.name)}"
-        data-comp="${escHtml(comp)}"
-        data-status="${escHtml(item.status)}"
-        data-owner="${escHtml(item.owner)}"
-        data-start="${item.startDate.toISOString()}"
-        data-end="${item.endDate.toISOString()}"
-        data-color="${color}"
-        data-badge-bg="${badge.bg}"
-        data-badge-color="${badge.color}">
-        <div class="row-lbl">
-          <span class="row-name" title="${escHtml(item.name)}">${escHtml(item.name)}</span>
-          <span class="row-owner">${escHtml(ownerFirst)}</span>
-        </div>
-        <div class="bar-area">
-          ${months.map(m => {
-            const isQstart = m.getMonth() % 3 === 0;
-            const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
-            return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
-          }).join('')}
-          <div class="bar" style="${barStyle}">
-            ${w > 8 ? `<span class="bar-label">${escHtml(item.name)}</span>` : ''}
+        html += `<div class="g-row"
+          data-name="${escHtml(item.name)}"
+          data-comp="${escHtml(comp)}"
+          data-status="${escHtml(item.status)}"
+          data-owner="${escHtml(item.owner)}"
+          data-start="${item.startDate.toISOString()}"
+          data-end="${item.endDate.toISOString()}"
+          data-color="${color}"
+          data-badge-bg="${badge.bg}"
+          data-badge-color="${badge.color}">
+          <div class="row-lbl">
+            <span class="row-name" title="${escHtml(item.name)}">${escHtml(item.name)}</span>
+            <span class="row-owner">${escHtml(ownerFirst)}</span>
           </div>
-        </div>
-      </div>`;
-    });
+          <div class="bar-area">
+            ${months.map(m => {
+              const isQstart = m.getMonth() % 3 === 0;
+              const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+              return `<div class="grid-col ${isQstart ? 'grid-col-q' : ''}" style="flex:${daysInMonth}"></div>`;
+            }).join('')}
+            <div class="bar" style="${barStyle}">
+              ${w > 8 ? `<span class="bar-label">${escHtml(item.name)}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+      });
+    }
   });
 
   html += `</div>`;
@@ -484,12 +583,20 @@ function showState(state, msg = '') {
 }
 
 let _refreshing = false;
+let _firstLoad = true;
 async function refresh() {
   if (_refreshing) return;
   _refreshing = true;
   try {
     showState('loading');
     _allItems = await loadItems();
+
+    // Initialize status filter with all statuses except Archived on first load
+    if (_firstLoad && _allItems.length > 0) {
+      _selectedStatuses = getStatuses(_allItems).filter(s => s !== 'Archived');
+      _firstLoad = false;
+    }
+
     const filtered = applyFilters(_allItems);
     renderGantt(filtered, true);
     showState('gantt');
@@ -556,7 +663,10 @@ function toggleFullscreen() {
 
 window.refresh = refresh;
 window.setYear = setYear;
-window.setStatus = setStatus;
+window.toggleStatus = toggleStatus;
+window.toggleAllStatuses = toggleAllStatuses;
+window.toggleStatusDropdown = toggleStatusDropdown;
+window.toggleComponentCollapse = toggleComponentCollapse;
 window.toggleTheme = toggleTheme;
 window.toggleFullscreen = toggleFullscreen;
 initTheme();
