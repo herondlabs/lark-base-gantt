@@ -22,6 +22,7 @@ const STATUS_CONFIG = {
   'Done':        { opacity: 0.4,  glow: false, dashed: false, stripe: false },
   'In Progress': { opacity: 1.0,  glow: true,  dashed: false, stripe: false },
   'Pending':     { opacity: 0.7,  glow: false, dashed: true,  stripe: true  },
+  'Archived':    { opacity: 0.3,  glow: false, dashed: false, stripe: false },
   'Not Started': { opacity: 0.25, glow: false, dashed: true,  stripe: false },
 };
 
@@ -29,6 +30,7 @@ const STATUS_BADGE = {
   'Done':        { bg: 'rgba(16,185,129,0.15)',  color: '#10B981' },
   'In Progress': { bg: 'rgba(59,130,246,0.15)',  color: '#60A5FA' },
   'Pending':     { bg: 'rgba(234,179,8,0.15)',   color: '#EAB308' },
+  'Archived':    { bg: 'rgba(100,116,139,0.15)', color: '#64748B' },
   'Not Started': { bg: 'rgba(107,114,128,0.15)', color: '#9CA3AF' },
 };
 
@@ -36,17 +38,27 @@ const COMPONENT_ORDER = ['Operation', 'Infrastructure', 'Quality', 'Security'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getCellText(value) {
+function getCellText(value, optionMap) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   if (Array.isArray(value)) {
     if (!value.length) return '';
     const first = value[0];
-    if (typeof first === 'string') return first;
+    if (typeof first === 'string') {
+      // Check if it's an option ID and we have a map
+      if (optionMap && optionMap[first]) {
+        return optionMap[first];
+      }
+      return first;
+    }
     return first?.text || first?.name || first?.en_us || '';
   }
   if (typeof value === 'object') {
+    // Handle formula fields that wrap values
+    if (value.value !== undefined) {
+      return getCellText(value.value, optionMap);
+    }
     return value.text || value.name || value.en_us || '';
   }
   return String(value);
@@ -95,6 +107,17 @@ async function loadItems() {
   const fStart     = fieldMap[FIELD_NAMES.startDate];
   const fEnd       = fieldMap[FIELD_NAMES.endDate];
 
+  // Build global option ID → name map from ALL fields with options
+  // (For non-formula single select fields)
+  const globalOptions = {};
+  fieldMetaList.forEach(f => {
+    if (f.property?.options) {
+      f.property.options.forEach(opt => {
+        globalOptions[opt.id] = opt.name;
+      });
+    }
+  });
+
   // Fetch all records (paginated)
   const allRecords = [];
   let pageToken;
@@ -104,15 +127,29 @@ async function loadItems() {
     pageToken = res.pageToken;
   } while (pageToken);
 
-  const items = allRecords.map(r => ({
-    id:        r.recordId,
-    name:      getCellText(r.fields[fItem]),
-    component: getCellText(r.fields[fComponent]),
-    status:    getCellText(r.fields[fStatus]),
-    owner:     getCellText(r.fields[fOwner]),
-    startDate: getCellDate(r.fields[fStart]),
-    endDate:   getCellDate(r.fields[fEnd]),
-  })).filter(r => r.name && r.startDate && r.endDate);
+  // Process records - use SDK getCellString for formula fields
+  const items = [];
+  for (const r of allRecords) {
+    const name = getCellText(r.fields[fItem]);
+    const startDate = getCellDate(r.fields[fStart]);
+    const endDate = getCellDate(r.fields[fEnd]);
+
+    if (!name || !startDate || !endDate) continue;
+
+    // Use SDK to resolve formula field values
+    const statusValue = await table.getCellString(fStatus, r.recordId);
+    const componentValue = await table.getCellString(fComponent, r.recordId);
+
+    items.push({
+      id: r.recordId,
+      name,
+      component: componentValue || getCellText(r.fields[fComponent], globalOptions),
+      status: statusValue || 'Unknown',
+      owner: getCellText(r.fields[fOwner]),
+      startDate,
+      endDate,
+    });
+  }
 
   table.onRecordModify(() => refresh());
   table.onRecordAdd(() => refresh());
@@ -279,6 +316,7 @@ function renderGantt(items, updateYearFilter = false) {
   // Build HTML
   // Today line offset: label column + percentage of timeline area
   // Formula: labelWidth + (todayPct% - labelWidth * todayPct/100)
+
   let html = `<div class="gantt-wrap" style="--today-pct:${todayPct}">
     <div class="today-line" style="left:calc(var(--label-width) + var(--today-pct) * 1% - var(--label-width) * var(--today-pct) / 100)"></div>`;
 
